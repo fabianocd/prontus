@@ -101,6 +101,24 @@ export type Database = {
         }
         Relationships: []
       }
+      extraction_events: {
+        Row: {
+          created_at: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
@@ -233,6 +251,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_extraction: { Args: never; Returns: Json }
+      get_extraction_quota: { Args: never; Returns: Json }
       save_template: {
         Args: {
           p_id: string

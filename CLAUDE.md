@@ -81,6 +81,7 @@ O PDF deve ser limpo e legível: fonte sem serifa, boa hierarquia, cabeçalho co
 - `anamneses`: id, user_id, template_id, template_snapshot (jsonb), title, patient_label, answers (jsonb), created_at, updated_at
 - `notes`: id, user_id, title, content, created_at, updated_at (Bloco de Notas)
 - `appointments`: id, user_id, date, start_time, end_time, title, location, notes, series_id (repetição semanal), created_at, updated_at (Calendário)
+- `extraction_events`: id, user_id, created_at (limite de leituras com IA: 10/h e 30/dia, via `claim_extraction()`; RLS impede alterar ou apagar eventos recentes)
 - FKs entre tabelas são compostas `(id, user_id)`, então ninguém liga dados a registros de outra pessoa. Migrations ficam em `supabase/migrations/` (mesmas versões aplicadas pelo MCP); tipos em `src/lib/supabase/database.types.ts` (regenerar após cada migration).
 - Guardar um snapshot do schema do modelo na anamnese (ou versionar o modelo), para que editar o modelo depois não quebre anamneses antigas.
 - Toda alteração de banco via migrations.

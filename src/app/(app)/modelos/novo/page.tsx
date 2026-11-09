@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
-import { getCurrentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
+import { extractionQuotaSchema, quotaNotice } from "@/lib/templates/extraction-limit";
 import { UploadForm } from "./upload-form";
 
 export const metadata: Metadata = { title: "Novo modelo" };
@@ -25,6 +26,9 @@ export default function NewTemplatePage() {
 }
 
 async function UploadSection() {
-  const user = await getCurrentUser();
-  return <UploadForm userId={user.id} />;
+  const { user, supabase } = await requireUser();
+  const { data } = await supabase.rpc("get_extraction_quota");
+  const quota = extractionQuotaSchema.safeParse(data);
+  // Se a consulta falhar, a rota ainda confere o limite antes de ler.
+  return <UploadForm userId={user.id} quotaNotice={quota.success ? quotaNotice(quota.data) : null} />;
 }

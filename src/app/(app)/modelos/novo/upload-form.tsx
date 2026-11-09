@@ -22,6 +22,7 @@ import {
   type ExtractRequest,
   type ExtractResponse,
 } from "@/lib/templates/extract-api";
+import type { QuotaNotice } from "@/lib/templates/extraction-limit";
 import { createBlankTemplate } from "@/lib/templates/normalize";
 import {
   ACCEPT_ATTRIBUTE,
@@ -47,13 +48,23 @@ type PickedFile = { key: string; file: File };
 
 const GENERIC_ERROR = "Algo deu errado ao ler a ficha. Tente de novo.";
 
-export function UploadForm({ userId }: { userId: string }) {
+export function UploadForm({
+  userId,
+  quotaNotice,
+}: {
+  userId: string;
+  quotaNotice: QuotaNotice;
+}) {
   const router = useRouter();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [phase, setPhase] = useState<Phase>({ step: "idle" });
   const [dragging, setDragging] = useState(false);
+  // Limite de leituras atingido (já na abertura da página ou pela resposta da rota).
+  const [limitMessage, setLimitMessage] = useState(
+    quotaNotice?.kind === "blocked" ? quotaNotice.message : null,
+  );
 
   const busy = phase.step === "uploading" || phase.step === "extracting";
   const check = files.length > 0 ? checkUpload(files.map(({ file }) => file)) : null;
@@ -90,7 +101,7 @@ export function UploadForm({ userId }: { userId: string }) {
   }
 
   async function extract() {
-    if (!check?.ok) return;
+    if (!check?.ok || limitMessage) return;
     const uploadId = crypto.randomUUID();
     const folder = sourceFolder(userId, uploadId);
     const supabase = createClient();
@@ -136,6 +147,12 @@ export function UploadForm({ userId }: { userId: string }) {
           };
     } catch {
       result = { ok: false, code: "network", message: "Sem conexão com o servidor. Tente de novo." };
+    }
+
+    if (!result.ok && result.code === "rate_limited") {
+      setLimitMessage(result.message);
+      setPhase({ step: "idle" });
+      return;
     }
 
     if (!result.ok) {
@@ -256,6 +273,14 @@ export function UploadForm({ userId }: { userId: string }) {
         ) : null}
 
         <div aria-live="polite">
+          {limitMessage ? (
+            <FormAlert tone="error" className="mt-4">
+              {limitMessage}
+            </FormAlert>
+          ) : quotaNotice?.kind === "low" ? (
+            <p className="mt-4 text-xs text-muted-foreground">{quotaNotice.message}</p>
+          ) : null}
+
           {phase.step === "uploading" || phase.step === "extracting" ? (
             <div className="mt-4 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-3 text-sm">
               <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-primary" aria-hidden />
@@ -303,7 +328,7 @@ export function UploadForm({ userId }: { userId: string }) {
             type="button"
             size="lg"
             className="h-10 rounded-xl px-4"
-            disabled={busy || !check?.ok}
+            disabled={busy || !check?.ok || Boolean(limitMessage)}
             aria-busy={busy || undefined}
             onClick={extract}
           >

@@ -11,6 +11,7 @@ import {
   extractRequestSchema,
   type ExtractResponse,
 } from "@/lib/templates/extract-api";
+import { blockedMessage, extractionQuotaSchema } from "@/lib/templates/extraction-limit";
 import { normalizeTemplate, normalizeTitle } from "@/lib/templates/normalize";
 import { checkUpload, resolveMime, sourceFolder } from "@/lib/uploads";
 
@@ -27,8 +28,8 @@ const STATUS: Record<ExtractionErrorCode, number> = {
   empty: 422,
 };
 
-function reply(body: ExtractResponse, status = 200) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+function reply(body: ExtractResponse, status = 200, headers: Record<string, string> = {}) {
+  return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 }
 
 function failure(code: string, message: string, status: number) {
@@ -82,6 +83,23 @@ export async function POST(request: NextRequest) {
   if (!check.ok) {
     await removeUpload();
     return failure("invalid_upload", check.message, 400);
+  }
+
+  // Limite por conta (10/h, 30/dia): a cota do Gemini é compartilhada pelo app.
+  // Conta toda leitura que chega ao Gemini, mesmo se ele falhar.
+  const { data: claim, error: claimError } = await supabase.rpc("claim_extraction");
+  const quota = extractionQuotaSchema.safeParse(claim);
+  if (claimError || !quota.success) {
+    console.error("Falha ao conferir o limite de leituras", claimError ?? quota.error);
+    return failure("unexpected", "Algo deu errado ao ler a ficha. Tente de novo.", 500);
+  }
+  if (!quota.data.allowed) {
+    await removeUpload();
+    return reply(
+      { ok: false, code: "rate_limited", message: blockedMessage(quota.data) },
+      429,
+      { "Retry-After": String(quota.data.retry_after_seconds) },
+    );
   }
 
   const downloads: ExtractionFile[] = [];
