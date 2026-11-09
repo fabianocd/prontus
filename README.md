@@ -4,6 +4,7 @@
 
 **App em produção:** https://prontus-med.vercel.app · **Código:** https://github.com/fabianocd/prontus
 
+[![CI](https://github.com/fabianocd/prontus/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianocd/prontus/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)
